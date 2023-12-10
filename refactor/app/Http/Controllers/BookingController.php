@@ -35,17 +35,15 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
+        $user_id = $request->get('user_id');
 
-            $response = $this->repository->getUsersJobs($user_id);
-
-        }
-        elseif($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID'))
-        {
-            $response = $this->repository->getAll($request);
+        if ($user_id) {
+            return response($this->repository->getUsersJobs($user_id));
+        } elseif ($this->isAdmin($request)) {
+            return response($this->repository->getAll($request));
         }
 
-        return response($response);
+        return null;
     }
 
     /**
@@ -63,14 +61,15 @@ class BookingController extends Controller
      * @param Request $request
      * @return mixed
      */
+
     public function store(Request $request)
     {
         $data = $request->all();
+        $authenticatedUser = $request->__authenticatedUser;
 
-        $response = $this->repository->store($request->__authenticatedUser, $data);
+        $response = $this->repository->store($authenticatedUser, $data);
 
         return response($response);
-
     }
 
     /**
@@ -78,11 +77,13 @@ class BookingController extends Controller
      * @param Request $request
      * @return mixed
      */
+
     public function update($id, Request $request)
     {
-        $data = $request->all();
-        $cuser = $request->__authenticatedUser;
-        $response = $this->repository->updateJob($id, array_except($data, ['_token', 'submit']), $cuser);
+        $data = $request->except('_token', 'submit');
+        $authenticatedUser = $request->__authenticatedUser;
+
+        $response = $this->repository->updateJob($id, $data, $authenticatedUser);
 
         return response($response);
     }
@@ -91,11 +92,10 @@ class BookingController extends Controller
      * @param Request $request
      * @return mixed
      */
+
     public function immediateJobEmail(Request $request)
     {
-        $adminSenderEmail = config('app.adminemail');
         $data = $request->all();
-
         $response = $this->repository->storeJobEmail($data);
 
         return response($response);
@@ -107,10 +107,10 @@ class BookingController extends Controller
      */
     public function getHistory(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
+        $user_id = $request->get('user_id');
 
-            $response = $this->repository->getUsersJobsHistory($user_id, $request);
-            return response($response);
+        if ($user_id) {
+            return response($this->repository->getUsersJobsHistory($user_id, $request));
         }
 
         return null;
@@ -289,6 +289,12 @@ class BookingController extends Controller
         } catch (\Exception $e) {
             return response(['success' => $e->getMessage()]);
         }
+    }
+
+    protected function isAdmin(Request $request)
+    {
+        $user = $request->__authenticatedUser;
+        return $user->user_type == env('ADMIN_ROLE_ID') || $user->user_type == env('SUPERADMIN_ROLE_ID');
     }
 
 }
